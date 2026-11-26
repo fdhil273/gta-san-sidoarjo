@@ -1,0 +1,12 @@
+# Abaikan poster, draf poster, dan file presentasi lokal (hanya push game)
+poster/
+presentasi/
+poster-*.png
+poster-*.jpg
+
+# File sistem & editor
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+node_modules/

@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GTA: San Sidoarjo — Grand Telkom Academy 3D | Computer Vision</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./vendor/three/build/three.module.js",
+      "three/addons/": "./vendor/three/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div class="game-viewport">
+    <!-- 3D WebGL World -->
+    <main class="stage-root" aria-label="Dunia 3D Grand Telkom Academy: San Sidoarjo">
+      <canvas id="game-canvas" class="game-canvas" aria-label="Tampilan 3D Kampus Grand Telkom Academy San Sidoarjo"></canvas>
+
+      <!-- GTA-Style Toast Banner (MISSION PASSED / EASTER EGG / PENALTY) -->
+      <div id="mission-passed-banner" class="mission-passed-banner" aria-hidden="true" hidden>
+        <p id="mp-title" class="mp-title">MISSION PASSED!</p>
+        <p id="mp-sub" class="mp-sub">+RESPECT · SAN SIDOARJO</p>
+      </div>
+
+      <!-- Loading Curtain with Official Team Logo -->
+      <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-card">
+          <img src="./assets/logo-san-sidoarjo.png" alt="Logo Grand Telkom Academy: San Sidoarjo" class="logo-hero" width="230" height="205" fetchpriority="high">
+          <p class="eyebrow">Grand Telkom Academy: Sidoarjo · Computer Vision 3D</p>
+          <p id="loading-status" class="loading-detail">Memuat gedung kampus, ruang kelas, karakter, dan animasi 3D...</p>
+          <label for="loading-progress" class="visually-hidden">Progres pemuatan aset 3D</label>
+          <progress id="loading-progress" class="loading-progress" value="0" max="100"></progress>
+          <p id="loading-count" class="loading-meta">0%</p>
+        </div>
+      </div>
+    </main>
+
+    <!-- Clean, Airy Non-Overlapping HUD Layer -->
+    <div class="hud-layer">
+      <!-- Row 1: Ultra-Slim Single-Row Header -->
+      <header class="hud-header">
+        <div class="brand-cluster">
+          <img src="./assets/logo-san-sidoarjo.png" alt="GTA: San Sidoarjo" class="logo-mini" width="44" height="39">
+          <div>
+            <h1 class="game-title">GTA: <span>San Sidoarjo</span></h1>
+            <p id="chapter-badge" class="chapter-subtitle">Bab 1 · Gerbang San Sidoarjo (07:00)</p>
+          </div>
+        </div>
+
+        <div class="stats-bar" aria-label="Status Karakter Siswa">
+          <div class="stat-pill" data-stat="akademik" title="Akademik">
+            <span class="stat-label">Akademik</span>
+            <strong id="stat-akademik" class="stat-value">10</strong>
+          </div>
+          <div class="stat-pill" data-stat="sosial" title="Sosial">
+            <span class="stat-label">Sosial</span>
+            <strong id="stat-sosial" class="stat-value">10</strong>
+          </div>
+          <div class="stat-pill" data-stat="olahraga" title="Olahraga">
+            <span class="stat-label">Olahraga</span>
+            <strong id="stat-olahraga" class="stat-value">10</strong>
+          </div>
+        </div>
+
+        <nav class="hud-actions" aria-label="Kontrol Cepat">
+          <button id="btn-toggle-cv" type="button" class="hud-btn hud-btn--primary" aria-pressed="false">
+            <span class="btn-dot" aria-hidden="true"></span>
+            <span id="btn-cv-label">Kamera CV</span>
+          </button>
+          <button id="btn-toggle-radar" type="button" class="hud-btn" aria-pressed="true" aria-label="Tampilkan atau sembunyikan Radar Mini-Map">🗺️</button>
+          <button id="btn-low-gpu" type="button" class="hud-btn" aria-pressed="false" aria-label="Aktifkan mode hemat GPU">⚡ GPU</button>
+          <button id="btn-toggle-bgm" type="button" class="hud-btn" aria-pressed="true" aria-label="Aktifkan atau matikan musik latar" title="Musik Latar (BGM)">🎵</button>
+          <button id="btn-toggle-audio" type="button" class="hud-btn" aria-pressed="true" aria-label="Aktifkan atau matikan efek suara" title="Efek Suara (SFX)">🔊</button>
+          <button id="btn-open-help" type="button" class="hud-btn" aria-label="Buka panduan kontrol">?</button>
+        </nav>
+      </header>
+
+      <!-- Row 2: Compact Left Mission + Collapsible Radar | Right Slim CV Monitor -->
+      <div class="hud-middle">
+        <div id="hud-left-stack" class="hud-left-stack">
+          <section id="mission-panel" class="mission-panel" aria-labelledby="mission-heading">
+            <div class="mission-header">
+              <span id="time-pill" class="time-pill">07:00 · Pagi</span>
+              <h2 id="mission-heading" class="mission-heading">Misi</h2>
+            </div>
+            <p id="mission-text" class="mission-text">
+              Temui Pak Budi (Penjaga Sekolah) di dekat gerbang utama!
+            </p>
+            <div class="mission-footer">
+              <span id="distance-hint" class="distance-hint">Jarak: -- m</span>
+              <button id="btn-interact" type="button" class="interact-btn" hidden>
+                Interaksi (Cubit 🤏)
+              </button>
+            </div>
+            <button id="btn-side-interact" type="button" class="side-btn" hidden>
+              ★ Interaksi Sekitar (Cubit 🤏)
+            </button>
+          </section>
+
+          <section id="minimap-panel" class="minimap-panel" aria-labelledby="minimap-heading">
+            <div class="minimap-header">
+              <h2 id="minimap-heading" class="minimap-heading">Radar San Sidoarjo</h2>
+              <div class="zoom-controls" aria-label="Zoom Kamera 3D">
+                <button id="btn-zoom-out" type="button" class="mini-btn" aria-label="Zoom Out kamera">−</button>
+                <button id="btn-zoom-in" type="button" class="mini-btn" aria-label="Zoom In kamera">+</button>
+              </div>
+            </div>
+            <canvas id="minimap-canvas" class="minimap-canvas" width="188" height="136" aria-label="Radar mini-map kampus San Sidoarjo"></canvas>
+          </section>
+        </div>
+
+        <aside id="cv-dock" class="cv-dock" aria-label="Monitor Computer Vision Webcam">
+          <div class="cv-dock-header">
+            <span id="cv-engine-badge" class="cv-badge cv-badge--idle">CV: Siap</span>
+            <button id="btn-collapse-cv" type="button" class="cv-collapse-btn" aria-expanded="true" aria-label="Sembunyikan atau tampilkan kotak kamera">▾</button>
+          </div>
+
+          <div id="cv-body" class="cv-body">
+            <div class="cv-feed-box">
+              <video id="cv-video" class="cv-video" width="176" height="132" muted playsinline aria-hidden="true"></video>
+              <canvas id="cv-canvas" class="cv-canvas" width="176" height="132" aria-label="Visualisasi pelacakan tangan Computer Vision"></canvas>
+              <div id="cv-placeholder" class="cv-placeholder">
+                <p class="cv-placeholder-title">Webcam Nonaktif</p>
+                <p class="cv-placeholder-desc">Klik <strong>Kamera CV</strong> untuk kontrol gestur tangan.</p>
+              </div>
+            </div>
+
+            <div class="cv-telemetry">
+              <div class="cv-meter-row">
+                <span id="cv-gesture-label" class="cv-gesture-text">Kamera Mati</span>
+                <span id="cv-vector-readout">Diam</span>
+              </div>
+              <div class="cv-dwell-wrap" id="cv-dwell-wrap" hidden>
+                <span id="cv-dwell-label">Menahan...</span>
+                <progress id="cv-dwell-bar" class="cv-dwell-bar" value="0" max="100"></progress>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <!-- Row 3: Bottom Dock (Unobstructed 3D Center View! Houses Ambient Remarks, Mini-Games, OR Dialogue) -->
+      <div class="hud-bottom">
+        <!-- Non-blocking Random Landmark Comment Bubble -->
+        <div id="ambient-toast" class="ambient-toast" role="status" hidden>
+          <span class="ambient-speaker">Rafi:</span>
+          <span id="ambient-text"></span>
+        </div>
+
+        <!-- Compact Bottom Mini-Game Bar (Never blocks Basketball Hoop, Soccer Goal, or Piano!) -->
+        <section id="minigame-panel" class="minigame-panel" aria-labelledby="minigame-title" hidden>
+          <div class="minigame-head">
+            <h2 id="minigame-title" class="minigame-title">Mini-Game</h2>
+            <p id="minigame-instruction" class="minigame-instruction"></p>
+            <span id="minigame-score" class="minigame-score">0 / 2</span>
+          </div>
+
+          <!-- Piano Rhythm 3D -->
+          <div id="piano-ui" class="piano-ui" hidden>
+            <div id="piano-pads" class="piano-pads">
+              <button type="button" class="piano-pad" data-lane="0"><span>Kiri</span><strong>Do</strong></button>
+              <button type="button" class="piano-pad" data-lane="1"><span>Tengah-L</span><strong>Re</strong></button>
+              <button type="button" class="piano-pad" data-lane="2"><span>Tengah-R</span><strong>Mi</strong></button>
+              <button type="button" class="piano-pad" data-lane="3"><span>Kanan</span><strong>Sol</strong></button>
+            </div>
+          </div>
+
+          <!-- Microscope Focus -->
+          <div id="microscope-ui" class="microscope-ui" hidden>
+            <div class="mg-inline-row">
+              <div class="focus-meter" aria-hidden="true">
+                <div id="focus-target-zone" class="focus-target-zone"></div>
+                <div id="focus-needle" class="focus-needle"></div>
+              </div>
+              <progress id="focus-lock-progress" class="minigame-progress" value="0" max="100"></progress>
+              <button id="btn-focus-up" type="button" class="hud-btn">↑ Naik</button>
+              <button id="btn-focus-down" type="button" class="hud-btn">↓ Turun</button>
+            </div>
+          </div>
+
+          <!-- Basketball Shot Power -->
+          <div id="basketball-ui" class="basketball-ui" hidden>
+            <div class="mg-inline-row">
+              <div class="power-bar-wrap">
+                <progress id="shot-power-progress" class="minigame-progress power-progress" value="0" max="100"></progress>
+                <span class="sweet-spot-marker" aria-hidden="true">Zona Emas (56–84%)</span>
+              </div>
+              <button id="btn-shoot-charge" type="button" class="hud-btn hud-btn--primary">
+                🏀 Kepal ✊ Isi Tenaga ➜ Buka 🖐️ Lempar!
+              </button>
+            </div>
+          </div>
+
+          <!-- Soccer Penalty Kick 3D -->
+          <div id="penalty-ui" class="penalty-ui" hidden>
+            <div class="mg-inline-row">
+              <div class="penalty-lanes">
+                <button type="button" class="lane-btn" data-penalty-lane="0">⬅️ Kiri</button>
+                <button type="button" class="lane-btn is-selected" data-penalty-lane="1">⬆️ Tengah</button>
+                <button type="button" class="lane-btn" data-penalty-lane="2">➡️ Kanan</button>
+              </div>
+              <button id="btn-penalty-kick" type="button" class="hud-btn hud-btn--primary">
+                ⚽ Tendang! (Kepal ✊ / Cubit 🤏)
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Bottom Story Dialogue & Choice Bar -->
+        <section id="dialogue-panel" class="dialogue-panel" aria-labelledby="dialogue-speaker" hidden>
+          <div class="dialogue-meta">
+            <span id="dialogue-speaker" class="dialogue-speaker">Pak Budi</span>
+            <span id="dialogue-role" class="dialogue-role">Penjaga Sekolah</span>
+          </div>
+          <p id="dialogue-body" class="dialogue-body"></p>
+          <div id="dialogue-choices" class="dialogue-choices"></div>
+          <div id="dialogue-continue-wrap" class="dialogue-continue-wrap">
+            <button id="btn-dialogue-next" type="button" class="hud-btn hud-btn--primary">
+              Lanjutkan (Cubit 🤏)
+            </button>
+          </div>
+        </section>
+
+        <div id="controls-strip" class="controls-strip" aria-label="Ringkasan Kontrol Gestur Tangan">
+          <span><strong>🖐️ Telapak:</strong> Jalan</span>
+          <span><strong>🤏 Cubit:</strong> Interaksi &amp; Side-Quest</span>
+          <span><strong>☝️✌️🤟 1–3 Jari:</strong> Kuis</span>
+          <span><strong>✊➜🖐️:</strong> Mini-Game</span>
+          <span><strong>✌️ Tahan 2 dtk:</strong> Rahasia!</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="sr-announcer" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
+  </div>
+
+  <!-- Native Modal Dialog: Welcome / Story Intro with Official San Sidoarjo Logo -->
+  <dialog id="intro-dialog" class="game-dialog" aria-labelledby="intro-title">
+    <div class="dialog-inner intro-centered">
+      <img src="./assets/logo-san-sidoarjo.png" alt="Grand Telkom Academy: San Sidoarjo" class="logo-modal" width="210" height="187">
+      <h2 id="intro-title" class="visually-hidden">Grand Telkom Academy: San Sidoarjo</h2>
+      <p class="dialog-lead">
+        Selamat datang di <strong>Grand Telkom Academy: San Sidoarjo</strong>! Main <strong>100% Tanpa Keyboard</strong> cukup dengan gerakan tangan di depan kamera + iringan <strong>Musik Latar GTA San Sidoarjo</strong>. Jelajahi kampus 3D sebagai <strong>Rafi</strong> berseragam rompi marun SMK Telkom, jawab kuis umum, taklukkan <strong>4 Mini-Game</strong>, temukan <strong>3 Easter Egg</strong>, dan buka <strong>4 Alternative Ending</strong>!
+      </p>
+
+      <div class="gesture-grid">
+        <div class="gesture-card">
+          <span class="gesture-icon" aria-hidden="true">🖐️</span>
+          <h3>Telapak Terbuka</h3>
+          <p>Geser telapak tangan di depan kamera untuk berjalan &amp; berlari.</p>
+        </div>
+        <div class="gesture-card">
+          <span class="gesture-icon" aria-hidden="true">🤏</span>
+          <h3>Cubit (Aksi)</h3>
+          <p>Bicara NPC, buka side-quest, ambil barang &amp; lanjutkan dialog.</p>
+        </div>
+        <div class="gesture-card">
+          <span class="gesture-icon" aria-hidden="true">☝️✌️🤟</span>
+          <h3>1 / 2 / 3 Jari</h3>
+          <p>Pilih jawaban kuis &amp; pilih opsi di layar Ending tanpa sentuh keyboard.</p>
+        </div>
+        <div class="gesture-card">
+          <span class="gesture-icon" aria-hidden="true">✊ / ✌️</span>
+          <h3>Mini-Game &amp; Rahasia</h3>
+          <p>Kepal ✊ untuk Basket &amp; Penalti, atau tahan Peace ✌️ 2 dtk untuk Easter Egg!</p>
+        </div>
+      </div>
+
+      <form method="dialog" class="dialog-actions dialog-actions--center">
+        <button value="start-cv" class="hud-btn hud-btn--primary" autofocus>
+          🖐️ Mulai Hands-Free (Kamera CV)
+        </button>
+        <button value="start-keyboard" class="hud-btn">
+          Mode Cadangan (Mouse / Sentuh)
+        </button>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Native Modal Dialog: Help & Easter Egg Hints -->
+  <dialog id="help-dialog" class="game-dialog" closedby="any" aria-labelledby="help-title">
+    <div class="dialog-inner">
+      <h2 id="help-title">Panduan GTA: San Sidoarjo (100% Gestur Tangan)</h2>
+      <div class="help-columns">
+        <div>
+          <h3>Kontrol Hands-Free Tanpa Keyboard</h3>
+          <ul>
+            <li><strong>🖐️ Telapak Terbuka:</strong> Geser tangan di depan kamera untuk jalan &amp; berlari.</li>
+            <li><strong>🤏 Cubit:</strong> Bicara NPC, buka side-quest (berlian biru), lanjut dialog, &amp; tutup pop-up.</li>
+            <li><strong>☝️ ✌️ 🤟 (1–3 Jari):</strong> Jawab kuis &amp; pilih opsi Ending (☝️ Main Ulang · ✌️ Jelajah Bebas).</li>
+            <li><strong>✊ Kepal:</strong> Isi tenaga lemparan Basket (✊➜🖐️) &amp; tendang bola Penalti!</li>
+            <li><strong>🎵 &amp; 🔊:</strong> Atur musik latar GTA San Sidoarjo &amp; efek suara secara terpisah.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>🥚 Rahasia &amp; Easter Egg (<span id="help-ee-count">0 / 3</span>)</h3>
+          <ul>
+            <li>Coba jalan mendekati <strong>Bus Sekolah Timur</strong> dekat gerbang depan...</li>
+            <li>Ada <strong>Monumen Emas Kota Udang</strong> tersembunyi di sisi timur di balik pohon!</li>
+            <li>Rahasia Hands-Free: Tahan gestur <strong>Peace ✌️ (2 Jari) selama 2 detik</strong> saat sedang eksplorasi di kampus!</li>
+          </ul>
+        </div>
+      </div>
+      <p class="dialog-note">
+        Model 3D dari <a href="https://polyfork.dev/" target="_blank" rel="noopener noreferrer">Polyfork.dev</a>. Gunakan tombol <strong>⚡ GPU</strong> jika dijalankan di laptop pameran tanpa GPU diskrit.
+      </p>
+      <form method="dialog" class="dialog-actions">
+        <button value="close" class="hud-btn hud-btn--primary" autofocus>Tutup (Cubit 🤏)</button>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Native Modal Dialog: Alternative Endings Report Card -->
+  <dialog id="ending-dialog" class="game-dialog" aria-labelledby="ending-title">
+    <div class="dialog-inner">
+      <p id="ending-code" class="eyebrow">MISSION PASSED · ENDING 1/4</p>
+      <h2 id="ending-title" class="gta-logo gta-logo--sm">MISSION <span>PASSED!</span></h2>
+      <p id="ending-badge" class="ending-badge">🎓 BINTANG CERDAS SAN SIDOARJO</p>
+      <p id="ending-summary" class="dialog-lead"></p>
+
+      <div class="report-scores">
+        <div class="report-card">
+          <span>Akademik</span>
+          <strong id="final-akademik">0</strong>
+        </div>
+        <div class="report-card">
+          <span>Sosial</span>
+          <strong id="final-sosial">0</strong>
+        </div>
+        <div class="report-card">
+          <span>Olahraga</span>
+          <strong id="final-olahraga">0</strong>
+        </div>
+      </div>
+
+      <div class="ending-collection">
+        <p id="ending-collection-title" class="ending-col-head">Koleksi Alternative Ending Terbuka (1 / 4) · Easter Egg: 0 / 3</p>
+        <div id="ending-chips" class="ending-chips"></div>
+      </div>
+
+      <div id="ending-cv-status" class="ending-cv-status" hidden>
+        <span id="ending-cv-label">Tahan ☝️ 1 Jari (Main Ulang) atau ✌️ 2 Jari (Jelajah)...</span>
+        <progress id="ending-cv-bar" class="cv-dwell-bar" value="0" max="100"></progress>
+      </div>
+
+      <form method="dialog" class="dialog-actions">
+        <button id="btn-ending-replay" value="replay" class="hud-btn hud-btn--primary" autofocus>☝️ 1 Jari · Main Ulang (Buka Ending Lain!)</button>
+        <button id="btn-ending-freeroam" value="free-roam" class="hud-btn">✌️ 2 Jari · Jelajah Bebas Kampus</button>
+      </form>
+    </div>
+  </dialog>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
